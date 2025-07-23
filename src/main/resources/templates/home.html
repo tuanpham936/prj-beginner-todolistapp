@@ -4,42 +4,43 @@
   <meta charset="UTF-8">
   <title>ToDo List</title>
   <link rel="stylesheet" href="/css/home.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 </head>
 <body>
-
 <div class="todo-container">
   <!-- Tabs -->
   <div class="tabs">
-    <button class="tab-btn active" data-tab="todo">ToDo</button>
-    <button class="tab-btn" data-tab="done">Done</button>
-    <button class="tab-btn" data-tab="cancel">Cancel</button>
+    <button class="tab-btn" data-tab="todo" th:classappend="${activeTab == 'todo'} ? ' active'">ToDo</button>
+    <button class="tab-btn" data-tab="done" th:classappend="${activeTab == 'done'} ? ' active'">Done</button>
+    <button class="tab-btn" data-tab="cancel" th:classappend="${activeTab == 'cancel'} ? ' active'">Cancel</button>
   </div>
 
   <!-- Search -->
-  <div class="search-bar">
-    <input type="text" id="search-input" placeholder="Search...">
-    <button id="search-btn">Search</button>
-  </div>
+  <form action="/search" method="post" class="search-bar">
+    <input type="hidden" name="activeTab" th:value="${activeTab}" id="search-tab">
+    <input type="text" id="search-input" placeholder="Search..." name="keyword">
+    <button type="submit" id="search-btn">Search</button>
+  </form>
 
   <!-- Content -->
-  <div class="tab-content" id="todo" style="display: block;">
+  <div class="tab-content" id="todo" th:style="${activeTab != 'todo'} ? 'display:none' : 'display:block'">
     <table>
         <thead>
             <tr>
                 <th>Done</th>
-                <th>Task</th>
-                <th>Date</th>
+                <th class="sortable" data-sort-key="task" data-order="asc">Task <i class="fa fa-sort-alpha-asc" aria-hidden="true"></i></th>
+                <th class="sortable" data-sort-key="date" data-order="asc">Date <i class="fa fa-sort-numeric-asc" aria-hidden="true"></i></th>
                 <th>Edit</th>
                 <th>Cancel</th>
             </tr>
         </thead>
       <tbody>
-        <tr th:each="item : ${todo}">
+        <tr th:each="item : ${todo}" th:data-exp="${item.exp}">
           <td>
               <button type="button" class="checkbox-btn" th:data-id="${item.id}">✔️</button>
           </td>
           <td th:text="${item.task}">Tên</td>
-          <td th:text="${item.date}">2024-01-01</td>
+          <td th:text="${item.exp}">2024-01-01</td>
           <td><button class="edit-btn">✏️</button></td>
           <td>
               <button type="button" class="delete-btn" th:data-id="${item.id}" data-state="remove">🗑️</button>
@@ -49,7 +50,7 @@
     </table>
   </div>
 
-  <div class="tab-content" id="done" style="display: none;">
+  <div class="tab-content" id="done" th:style="${activeTab != 'done'} ? 'display:none' : 'display:block'">
     <table>
         <thead>
             <tr>
@@ -61,7 +62,7 @@
       <tbody>
         <tr th:each="item : ${done}">
           <td th:text="${item.task}">Tên</td>
-          <td th:text="${item.date}">2024-01-01</td>
+          <td th:text="${item.exp}">2024-01-01</td>
           <td>
               <button type="button" class="done-rollback-btn rollback-btn" th:data-id="${item.id}">↩️</button>
           </td>
@@ -70,7 +71,7 @@
     </table>
   </div>
 
-  <div class="tab-content" id="cancel" style="display: none;">
+  <div class="tab-content" id="cancel" th:style="${activeTab != 'cancel'} ? 'display:none' : 'display:block'">
     <table>
         <thead>
             <tr>
@@ -82,7 +83,7 @@
       <tbody>
         <tr th:each="item : ${cancel}">
           <td th:text="${item.task}">Tên</td>
-          <td th:text="${item.date}">2024-01-01</td>
+          <td th:text="${item.exp}">2024-01-01</td>
           <td>
               <button type="button" class="cancel-rollback-btn rollback-btn" th:data-id="${item.id}">↩️</button>
           </td>
@@ -108,7 +109,7 @@
       <input type="text" id="taskName" name="task" required>
 
       <label for="taskDate">Date:</label>
-      <input type="date" id="date" name="date" required>
+      <input type="date" id="date" name="exp" required>
 
       <button type="submit" class="submit-btn">Submit</button>
     </form>
@@ -134,7 +135,7 @@
     const data = {
       id: "",
       task: formData.get('task'),
-      date: formData.get('date') 
+      exp: formData.get('exp') 
     };
 
     fetch('/todo/add', {
@@ -157,6 +158,7 @@
   btn.addEventListener('click', () => {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+      document.getElementById('search-tab').value = btn.dataset.tab;
       btn.classList.add('active');
       document.getElementById(btn.dataset.tab).style.display = 'block';
   });
@@ -284,6 +286,30 @@
         cancelBtn.textContent = '🗑️';
         cancelBtn.setAttribute('data-state', 'remove');
 
+        row.setAttribute('data-exp', updatedDate);
+
+        const expStr = updatedDate;
+        const expDate = new Date(expStr);
+        const today = new Date();
+
+        // Reset giờ về 0 để so sánh chính xác theo ngày
+        today.setHours(0, 0, 0, 0);
+        expDate.setHours(0, 0, 0, 0);
+
+        const timeDiff = expDate - today;
+        const daysDiff = timeDiff / (1000 * 60 * 60 * 24);
+
+        if (daysDiff < 0) {
+          // Quá hạn
+          row.style.backgroundColor = '#ffdddd'; // đỏ nhạt
+        } else if (daysDiff <= 7) {
+          // Trước hạn 7 ngày
+          row.style.backgroundColor = '#fffacc'; // vàng nhạt
+        }
+        else {
+          row.style.backgroundColor = '#f0f0f0';
+        }
+
         fetch('/todo/update', {
           method: 'PUT',
           headers: {
@@ -292,7 +318,7 @@
           body: JSON.stringify({
             id: id,
             task: updatedTask,
-            date: updatedDate
+            exp: updatedDate
           })
         }).then(res => {
           if (res.ok) {
@@ -320,6 +346,78 @@
     })
     .catch(error => {
       location.reload();
+    });
+  });
+
+  document.querySelectorAll('tr[data-exp]').forEach(row => {
+    const expStr = row.dataset.exp;
+    const expDate = new Date(expStr);
+    const today = new Date();
+
+    // Reset giờ về 0 để so sánh chính xác theo ngày
+    today.setHours(0, 0, 0, 0);
+    expDate.setHours(0, 0, 0, 0);
+
+    const timeDiff = expDate - today;
+    const daysDiff = timeDiff / (1000 * 60 * 60 * 24);
+
+    if (daysDiff < 0) {
+      // Quá hạn
+      row.style.backgroundColor = '#ffdddd'; // đỏ nhạt
+    } else if (daysDiff <= 7) {
+      // Trước hạn 7 ngày
+      row.style.backgroundColor = '#fffacc'; // vàng nhạt
+    }
+    else {
+      row.style.backgroundColor = '#f0f0f0';
+    }
+  });
+
+  function sortTableBy(key, order) {
+    const tbody = document.querySelector('#todo tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+
+    const keyIndex = {
+      task: 1,
+      date: 2
+    };
+
+    const colIndex = keyIndex[key];
+    const isDate = key === 'date';
+
+    rows.sort((a, b) => {
+      let valA = a.children[colIndex].textContent.trim();
+      let valB = b.children[colIndex].textContent.trim();
+
+      if (isDate) {
+        valA = new Date(valA);
+        valB = new Date(valB);
+      }
+
+      return order === 'asc'
+        ? (valA > valB ? 1 : valA < valB ? -1 : 0)
+        : (valA < valB ? 1 : valA > valB ? -1 : 0);
+    });
+
+    rows.forEach(row => tbody.appendChild(row));
+  }
+
+  document.querySelectorAll('.sortable').forEach(th => {
+    th.style.cursor = 'pointer';
+    th.addEventListener('click', () => {
+      const key = th.dataset.sortKey;
+      const currentOrder = th.dataset.order || 'asc';
+      const newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+
+      if (key === 'task') {
+        th.querySelector('i').className = 'fa fa-sort-alpha-' + newOrder;
+      }
+      else {
+        th.querySelector('i').className = 'fa fa-sort-numeric-' + newOrder;
+      }
+
+      th.dataset.order = newOrder;
+      sortTableBy(key, newOrder);
     });
   });
 </script>

@@ -1,14 +1,15 @@
 package com.projects.todolist.models;
 
 import java.util.UUID;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
 
-import org.springframework.data.annotation.Id;
-
+@Entity
 public class Task {
     @Id
     private String id;
     private String task;
-    private String date;
+    private String exp;
     public Task() {
         id = UUID.randomUUID().toString();
     }
@@ -24,10 +25,10 @@ public class Task {
     public void setTask(String task) {
         this.task = task;
     }
-    public String getDate() {
-        return date;
+    public String getExp() {
+        return exp;
     }
-    public void setDate(String date) {
-        this.date = date;
+    public void setExp(String date) {
+        this.exp = date;
     }
 }

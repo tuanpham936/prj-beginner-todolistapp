@@ -4,8 +4,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.projects.todolist.models.Task;
 import com.projects.todolist.repositories.TasksRepository;
 import com.projects.todolist.services.TaskServices;
-
-import java.util.ArrayList;
+import com.projects.todolist.utils.Pair;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,26 +19,10 @@ import org.springframework.web.bind.annotation.PutMapping;
 public class TaskRestController {
     private final TaskServices taskServices;
     private final TasksRepository tasksRepository;
-
-    private List<Task> todo = new ArrayList<>();
-    private List<Task> doneTasks = new ArrayList<>();
-    private List<Task> cancelTasks = new ArrayList<>();
     
     public TaskRestController(TaskServices taskServices, TasksRepository tasksRepository) {
         this.taskServices = taskServices;
         this.tasksRepository = tasksRepository;
-
-        Task t1 = new Task();
-        t1.setTask("Task 1");
-        t1.setDate("2025-01-01");
-        Task t2 = new Task();
-        t2.setTask("Task 2");
-        t2.setDate("2025-01-02");
-        Task t3 = new Task();
-        t3.setTask("Task 3");
-        t3.setDate("2025-01-03");
-
-        todo.addAll(List.of(t1, t2, t3));
     }
 
     @GetMapping("/search/{list}/{name}")
@@ -50,13 +33,13 @@ public class TaskRestController {
     @DeleteMapping("/clear/{tab}")
     public void clearTab(@PathVariable String tab) {
         if (tab.equals("todo")) {
-            todo.clear();
+            tasksRepository.clearToDo();
         }
         else if (tab.equals("done")) {
-            doneTasks.clear();
+            tasksRepository.clearDone();
         }
         else if (tab.equals("cancel")) {
-            cancelTasks.clear();
+            tasksRepository.clearCancel();
         }
     }
     
@@ -67,52 +50,23 @@ public class TaskRestController {
 
     @PostMapping("/todo/add")
     public Task addToDo(@RequestBody Task task) {
-        Task t = new Task();
-        t.setTask(task.getTask());
-        t.setDate(task.getDate());
-        todo.add(t);
-        return t;
+        return taskServices.addToDo(task);
     }
     
     @PutMapping("/todo/update")
     public ResponseEntity<Task> updateToDo(@RequestBody Task task) {
-        boolean isExist = false;
-        for (Task t : todo) {
-            if (t.getId().equals(task.getId())) {
-                isExist = true;
-                t.setTask(task.getTask());
-                t.setDate(task.getDate());
-            }
-        }
-        return isExist ? ResponseEntity.status(201).body(task) : ResponseEntity.status(200).body(addToDo(task));
+        Pair<Boolean, Task> t = taskServices.updateToDo(task);
+        return t.getKey() ? ResponseEntity.status(201).body(t.getValue()) : ResponseEntity.status(200).body(t.getValue());
     }
 
     @DeleteMapping("/todo/done/{id}")
     public ResponseEntity<Task> doneToDo(@PathVariable String id) {
-        int removeIndex = -1;
-        for (Task task : todo) {
-            if (task.getId().equals(id)) {
-                removeIndex = todo.indexOf(task);
-                doneTasks.add(task);
-            }
-        }
-        if (removeIndex != -1) todo.remove(removeIndex);
-
-        return removeIndex != -1 ? ResponseEntity.ok().body(null) : ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        return taskServices.transferTaskFromToDoToDone(id) ? ResponseEntity.ok().body(null) : ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
     }
 
     @DeleteMapping("/todo/cancel/{id}")
     public ResponseEntity<Task> cancelToDo(@PathVariable String id) {
-        int removeIndex = -1;
-        for (Task task : todo) {
-            if (task.getId().equals(id)) {
-                removeIndex = todo.indexOf(task);
-                cancelTasks.add(task);
-            }
-        }
-        if (removeIndex != -1) todo.remove(removeIndex);
-
-        return removeIndex != -1 ? ResponseEntity.ok().body(null) : ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        return taskServices.transferTaskFromToDoToCancel(id) ? ResponseEntity.ok().body(null) : ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
     }
 
     @GetMapping("/done")
@@ -122,16 +76,7 @@ public class TaskRestController {
     
     @DeleteMapping("/done/rollback/{id}")
     public ResponseEntity<Task> rollbackDone(@PathVariable String id) {
-        int removeIndex = -1;
-        for (Task task : doneTasks) {
-            if (task.getId().equals(id)) {
-                removeIndex = doneTasks.indexOf(task);
-                todo.add(task);
-            }
-        }
-        if (removeIndex != -1) doneTasks.remove(removeIndex);
-
-        return removeIndex != -1 ? ResponseEntity.ok().body(null) : ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        return taskServices.transferTaskFromDoneToToDo(id) ? ResponseEntity.ok().body(null) : ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
     }
 
     @GetMapping("/cancel")
@@ -141,15 +86,6 @@ public class TaskRestController {
     
     @DeleteMapping("/cancel/rollback/{id}")
     public ResponseEntity<Task> rollbackCancel(@PathVariable String id) {
-        int removeIndex = -1;
-        for (Task task : cancelTasks) {
-            if (task.getId().equals(id)) {
-                removeIndex = cancelTasks.indexOf(task);
-                todo.add(task);
-            }
-        }
-        if (removeIndex != -1) cancelTasks.remove(removeIndex);
-
-        return removeIndex != -1 ? ResponseEntity.ok().body(null) : ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        return taskServices.transferTaskFromCancelToToDo(id) ? ResponseEntity.ok().body(null) : ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
     }
 }

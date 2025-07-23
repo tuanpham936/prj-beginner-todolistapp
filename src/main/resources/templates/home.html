@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>ToDo List</title>
+  <link rel="stylesheet" href="/css/home.css">
+</head>
+<body>
+
+<div class="todo-container">
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="todo">ToDo</button>
+    <button class="tab-btn" data-tab="done">Done</button>
+    <button class="tab-btn" data-tab="cancel">Cancel</button>
+  </div>
+
+  <!-- Search -->
+  <div class="search-bar">
+    <input type="text" id="search-input" placeholder="Search...">
+    <button id="search-btn">Search</button>
+  </div>
+
+  <!-- Content -->
+  <div class="tab-content" id="todo" style="display: block;">
+    <table>
+        <thead>
+            <tr>
+                <th>Done</th>
+                <th>Task</th>
+                <th>Date</th>
+                <th>Edit</th>
+                <th>Cancel</th>
+            </tr>
+        </thead>
+      <tbody>
+        <tr th:each="item : ${todo}">
+          <td>
+              <button type="button" class="checkbox-btn" th:data-id="${item.id}">✔️</button>
+          </td>
+          <td th:text="${item.task}">Tên</td>
+          <td th:text="${item.date}">2024-01-01</td>
+          <td><button class="edit-btn">✏️</button></td>
+          <td>
+              <button type="button" class="delete-btn" th:data-id="${item.id}" data-state="remove">🗑️</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tab-content" id="done" style="display: none;">
+    <table>
+        <thead>
+            <tr>
+                <th>Task</th>
+                <th>Date</th>
+                <th>Rollback</th>
+            </tr>
+        </thead>
+      <tbody>
+        <tr th:each="item : ${done}">
+          <td th:text="${item.task}">Tên</td>
+          <td th:text="${item.date}">2024-01-01</td>
+          <td>
+              <button type="button" class="done-rollback-btn rollback-btn" th:data-id="${item.id}">↩️</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tab-content" id="cancel" style="display: none;">
+    <table>
+        <thead>
+            <tr>
+                <th>Task</th>
+                <th>Date</th>
+                <th>Rollback</th>
+            </tr>
+        </thead>
+      <tbody>
+        <tr th:each="item : ${cancel}">
+          <td th:text="${item.task}">Tên</td>
+          <td th:text="${item.date}">2024-01-01</td>
+          <td>
+              <button type="button" class="cancel-rollback-btn rollback-btn" th:data-id="${item.id}">↩️</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Bottom Buttons -->
+  <div class="bottom-bar">
+    <button id="open-modal-btn">Add ToDo</button>
+    <button id="clear-btn">Clear This Tab</button>
+  </div>
+</div>
+
+<div id="todo-modal" class="modal">
+  <div class="modal-content">
+    <span class="close-btn">&times;</span>
+    <h2>📝 Add New Task</h2>
+    <form action="/todo/add" method="post" id="todo-form">
+      <input type="hidden" name="id" value="">
+      <label for="task">Task Name:</label>
+      <input type="text" id="taskName" name="task" required>
+
+      <label for="taskDate">Date:</label>
+      <input type="date" id="date" name="date" required>
+
+      <button type="submit" class="submit-btn">Submit</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  const modal = document.getElementById('todo-modal');
+  const openBtn = document.getElementById('open-modal-btn');
+  const closeBtn = document.querySelector('.close-btn');
+
+  openBtn.onclick = () => modal.style.display = 'block';
+  closeBtn.onclick = () => modal.style.display = 'none';
+  window.onclick = (e) => {
+    if (e.target == modal) modal.style.display = 'none';
+  };
+
+  const form = document.getElementById('todo-form');
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(form);
+    const data = {
+      id: "",
+      task: formData.get('task'),
+      date: formData.get('date') 
+    };
+
+    fetch('/todo/add', {
+      method: 'POST',
+      headers: {
+          'Content-Type': 'application/json'
+      }, 
+      body: JSON.stringify(data)
+    })
+    .then(response => {
+        location.reload();
+    })
+    .catch(error => {
+      alert("Có lỗi xảy ra");
+      console.error(error);
+    });
+  });
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab).style.display = 'block';
+  });
+  });
+
+  document.querySelectorAll('.checkbox-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      fetch('/todo/done/' + id, {
+        method: 'DELETE',
+        body: null
+      })
+      .then(response => response.status)
+      .then(result => {
+        location.reload();
+      })
+      .catch(error => {
+        location.reload();
+      });
+    });
+  });
+
+  document.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.getAttribute('data-state') === 'remove') {
+          const id = btn.getAttribute('data-id');
+          fetch('/todo/cancel/' + id, {
+            method: 'DELETE',
+            body: null
+          })
+          .then(response => response.status)
+          .then(result => {
+            location.reload();
+          })
+          .catch(error => {
+            location.reload();
+          });
+        }
+      })
+  });
+
+  document.querySelectorAll('.done-rollback-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      fetch('/done/rollback/' + id, {
+        method: 'DELETE',
+        body: null
+      })
+      .then(response => response.status)
+      .then(result => {
+        location.reload();
+      })
+      .catch(error => {
+        location.reload();
+      });
+    });
+  });
+  
+  document.querySelectorAll('.cancel-rollback-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      fetch('/cancel/rollback/' + id, {
+        method: 'DELETE',
+        body: null
+      })
+      .then(response => response.status)
+      .then(result => {
+        location.reload();
+      })
+      .catch(error => {
+        location.reload();
+      });
+    });
+  });
+
+  document.querySelectorAll('.edit-btn').forEach(editBtn => {
+    editBtn.addEventListener('click', function () {
+      const row = this.closest('tr');
+      const taskCell = row.children[1];
+      const dateCell = row.children[2];
+      const cancelBtn = row.querySelector('.delete-btn');
+      const id = cancelBtn.dataset.id;
+
+      const isEditing = taskCell.querySelector('input') !== null;
+
+      if (!isEditing) {
+        // Chuyển sang edit mode
+        const oldTask = taskCell.textContent.trim();
+        const oldDate = dateCell.textContent.trim();
+
+        taskCell.innerHTML = `<input type="text" value="${oldTask}" class="task-input">`;
+        dateCell.innerHTML = `<input type="date" value="${oldDate}" class="date-input">`;
+
+        editBtn.textContent = '✅';
+        cancelBtn.textContent = '❌';
+        cancelBtn.setAttribute('data-state', 'cancel');
+
+        // Gắn sự kiện cho cancelBtn để hủy
+        cancelBtn.onclick = () => {
+          if (cancelBtn.getAttribute('data-state') === 'cancel') {
+            taskCell.textContent = oldTask;
+            dateCell.textContent = oldDate;
+            editBtn.textContent = '✏️';
+            cancelBtn.textContent = '🗑️';
+            cancelBtn.setAttribute('data-state', 'remove');
+          }
+        };
+
+        row.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') submitEdit();
+        });
+
+      } 
+      else {
+        submitEdit();
+      }
+
+      function submitEdit() {
+        const updatedTask = taskCell.querySelector('input').value;
+        const updatedDate = dateCell.querySelector('input').value;
+        
+        taskCell.textContent = updatedTask;
+        dateCell.textContent = updatedDate;
+        editBtn.textContent = '✏️';
+        cancelBtn.textContent = '🗑️';
+        cancelBtn.setAttribute('data-state', 'remove');
+
+        fetch('/todo/update', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            id: id,
+            task: updatedTask,
+            date: updatedDate
+          })
+        }).then(res => {
+          if (res.ok) {
+          } else {
+            alert("❌ Không thể cập nhật");
+          }
+        }).catch(err => {
+          alert("❌ Lỗi kết nối");
+          console.error(err);
+        });
+      }
+    });
+  });
+
+  document.getElementById('clear-btn').addEventListener('click', () => {
+    const tab = document.querySelector('.active').getAttribute('data-tab');
+
+    fetch('/clear/' + tab, {
+      method: 'DELETE',
+      body: null
+    })
+    .then(response => response.status)
+    .then(result => {
+      location.reload();
+    })
+    .catch(error => {
+      location.reload();
+    });
+  });
+</script>
+</body>
+</html>
